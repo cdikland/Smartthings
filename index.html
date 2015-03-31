@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Aeon Labs Multi-sense by cdikland</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='http://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Aeon Labs Multi-sense</h1>
+      <h2 class="project-tagline"></h2>
+      <a href="https://github.com/cdikland/Smartthings" class="btn">View on GitHub</a>
+      <a href="https://github.com/cdikland/Smartthings/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/cdikland/Smartthings/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <p>metadata {
+    // Automatically generated. Make future change here.
+    definition (name: "Aeon Multisensor-1 min", namespace: "Smartthings", author: "????") {
+        capability "Motion Sensor"
+        capability "Temperature Measurement"
+        capability "Relative Humidity Measurement"
+        capability "Configuration"
+        capability "Illuminance Measurement"
+        capability "Sensor"
+        capability "Battery"</p>
+
+<pre><code>    fingerprint deviceId: "0x2001", inClusters: "0x30,0x31,0x80,0x84,0x70,0x85,0x72,0x86"
+}
+
+simulator {
+    // messages the device returns in response to commands it receives
+    status "motion (basic)"     : "command: 2001, payload: FF"
+    status "no motion (basic)"  : "command: 2001, payload: 00"
+    status "motion (binary)"    : "command: 3003, payload: FF"
+    status "no motion (binary)" : "command: 3003, payload: 00"
+
+    for (int i = 0; i &lt;= 100; i += 20) {
+        status "temperature ${i}F": new physicalgraph.zwave.Zwave().sensorMultilevelV2.sensorMultilevelReport(
+            scaledSensorValue: i, precision: 1, sensorType: 1, scale: 1).incomingMessage()
+    }
+
+    for (int i = 0; i &lt;= 100; i += 20) {
+        status "humidity ${i}%": new physicalgraph.zwave.Zwave().sensorMultilevelV2.sensorMultilevelReport(
+            scaledSensorValue: i, precision: 0, sensorType: 5).incomingMessage()
+    }
+
+    for (int i = 0; i &lt;= 100; i += 20) {
+        status "luminance ${i} lux": new physicalgraph.zwave.Zwave().sensorMultilevelV2.sensorMultilevelReport(
+            scaledSensorValue: i, precision: 0, sensorType: 3).incomingMessage()
+    }
+    for (int i = 200; i &lt;= 1000; i += 200) {
+        status "luminance ${i} lux": new physicalgraph.zwave.Zwave().sensorMultilevelV2.sensorMultilevelReport(
+            scaledSensorValue: i, precision: 0, sensorType: 3).incomingMessage()
+    }
+
+    for (int i = 0; i &lt;= 100; i += 20) {
+        status "battery ${i}%": new physicalgraph.zwave.Zwave().batteryV1.batteryReport(
+            batteryLevel: i).incomingMessage()
+    }
+}
+</code></pre>
+
+<p>preferences {
+        input(name: "RHOffsetStr", type: "enum", title: "Humidity Offset ", options: ["-10","-8","-6","-4","-2","0","2","4","6","8","10"])
+}</p>
+
+<p>tiles {
+        standardTile("motion", "device.motion", width: 2, height: 2) {
+            state "active", label:'motion', icon:"st.motion.motion.active", backgroundColor:"#53a7c0"
+            state "inactive", label:'no motion', icon:"st.motion.motion.inactive", backgroundColor:"#ffffff"
+        }
+        valueTile("temperature", "device.temperature", inactiveLabel: false) {
+            state "temperature", label:'${currentValue}°',
+            backgroundColors:[
+                [value: 31, color: "#153591"],
+                [value: 44, color: "#1e9cbb"],
+                [value: 59, color: "#90d2a7"],
+                [value: 74, color: "#44b621"],
+                [value: 84, color: "#f1d801"],
+                [value: 95, color: "#d04e00"],
+                [value: 96, color: "#bc2323"]
+            ]
+        }</p>
+
+<pre><code>    valueTile("humidity", "device.humidity") {
+        state "default", label:'Sunroom: ${currentValue}%',
+            backgroundColors:[
+                [value: 19, color: "#bc2323"],
+                [value: 31, color: "#d04e00"],
+                [value: 44, color: "#f1d801"],
+                [value: 59, color: "#44b621"],
+                [value: 74, color: "#90d2a7"],
+                [value: 84, color: "#1e9cbb"],
+                [value: 95, color: "#153591"],
+                [value: 96, color: "#9F8ACD"]
+            ]
+    }
+</code></pre>
+
+<p>valueTile("illuminance", "device.illuminance", inactiveLabel: false) {
+            state "luminosity", label:'${currentValue} ${unit}', unit:"lux"
+        }
+        valueTile("battery", "device.battery", inactiveLabel: false, decoration: "flat") {
+            state "battery", label:'${currentValue}% battery', unit:""
+        }
+        standardTile("configure", "device.configure", inactiveLabel: false, decoration: "flat") {
+            state "configure", label:'', action:"configuration.configure", icon:"st.secondary.configure"
+        }</p>
+
+<pre><code>    main(["motion", "temperature", "humidity", "illuminance"])
+    details(["motion", "temperature", "humidity", "illuminance", "battery", "configure"])
+}
+</code></pre>
+
+<p>}</p>
+
+<p>// Parse incoming device messages to generate events
+def parse(String description)
+{
+    def result = []
+    def cmd = zwave.parse(description, [0x31: 2, 0x30: 1, 0x84: 1])
+    if (cmd) {
+        if( cmd.CMD == "8407" ) { result &lt;&lt; new physicalgraph.device.HubAction(zwave.wakeUpV1.wakeUpNoMoreInformation().format()) }
+        result &lt;&lt; createEvent(zwaveEvent(cmd))
+    }
+    log.debug "Parse returned ${result}"
+    return result
+}</p>
+
+<p>// Event Generation
+def zwaveEvent(physicalgraph.zwave.commands.wakeupv1.WakeUpNotification cmd)
+{
+    [descriptionText: "${device.displayName} woke up", isStateChange: false]
+}</p>
+
+<p>def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv2.SensorMultilevelReport cmd)
+{
+    def map = [:]
+    switch (cmd.sensorType) {
+        case 1:
+            // temperature
+            def cmdScale = cmd.scale == 1 ? "F" : "C"
+            map.value = convertTemperatureIfNeeded(cmd.scaledSensorValue, cmdScale, cmd.precision)
+            map.unit = getTemperatureScale()
+            map.name = "temperature"
+            break;
+        case 3:
+            // luminance
+            map.value = cmd.scaledSensorValue.toInteger().toString()
+            map.unit = "lux"
+            map.name = "illuminance"
+            break;
+        case 5:
+            // humidity
+            def RHOffset=RHOffsetStr as Integer
+            def RHAdjusted = cmd.scaledSensorValue.toInteger() + RHOffset
+            map.value = RHAdjusted.toString()
+            map.unit = "%"
+            map.name = "humidity"
+            break;
+    }
+    map
+}</p>
+
+<p>def zwaveEvent(physicalgraph.zwave.commands.batteryv1.BatteryReport cmd) {
+    def map = [:]
+    map.name = "battery"
+    map.value = cmd.batteryLevel &gt; 0 ? cmd.batteryLevel.toString() : 1
+    map.unit = "%"
+    map.displayed = false
+    map
+}</p>
+
+<p>def zwaveEvent(physicalgraph.zwave.commands.sensorbinaryv1.SensorBinaryReport cmd) {
+    def map = [:]
+    map.value = cmd.sensorValue ? "active" : "inactive"
+    map.name = "motion"
+    if (map.value == "active") {
+        map.descriptionText = "$device.displayName detected motion"
+    }
+    else {
+        map.descriptionText = "$device.displayName motion has stopped"
+    }
+    map
+}</p>
+
+<p>def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicSet cmd) {
+    def map = [:]
+    map.value = cmd.value ? "active" : "inactive"
+    map.name = "motion"
+    if (map.value == "active") {
+        map.descriptionText = "$device.displayName detected motion"
+    }
+    else {
+        map.descriptionText = "$device.displayName motion has stopped"
+    }
+    map
+}</p>
+
+<p>def zwaveEvent(physicalgraph.zwave.Command cmd) {
+    log.debug "Catchall reached for cmd: ${cmd.toString()}}"
+    [:]
+}</p>
+
+<p>def configure() {
+    delayBetween([
+    // send binary sensor report instead of basic set for motion
+        zwave.configurationV1.configurationSet(parameterNumber: 5, size: 1, scaledConfigurationValue: 2).format(),</p>
+
+<pre><code>// send no-motion report 1 minute after motion stops
+    zwave.configurationV1.configurationSet(parameterNumber: 3, size: 2, scaledConfigurationValue: 60).format(),
+
+// send illuminance data periodically
+    zwave.configurationV1.configurationSet(parameterNumber: 101, size: 4, scaledConfigurationValue: 128).format(),
+
+    // send humidity &amp; temperature data periodically
+    zwave.configurationV1.configurationSet(parameterNumber: 102, size: 4, scaledConfigurationValue: 96).format(),  
+
+    // send battery periodically
+    zwave.configurationV1.configurationSet(parameterNumber: 103, size: 4, scaledConfigurationValue: 1).format(),
+
+    // send illuminance data every 4 minutes
+    zwave.configurationV1.configurationSet(parameterNumber: 111, size: 4, scaledConfigurationValue: 240).format(),
+
+    // send humidity &amp; temperature data every 4 minutes
+    zwave.configurationV1.configurationSet(parameterNumber: 112, size: 4, scaledConfigurationValue: 120).format(),
+
+// send battery every 1 hour
+    zwave.configurationV1.configurationSet(parameterNumber: 113, size: 4, scaledConfigurationValue: 3590).format()
+])
+</code></pre>
+
+<p>}</p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/cdikland/Smartthings">Aeon Labs Multi-sense</a> is maintained by <a href="https://github.com/cdikland">cdikland</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
+
